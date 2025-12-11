@@ -263,12 +263,19 @@ public class BoardPane extends GridPane {
             // Try to load tile image
             String imagePath = getTileImagePath(tile);
             try {
-                Image image = new Image(getClass().getResourceAsStream(imagePath));
-                imageView.setImage(image);
-                // Rotate based on orientation
-                imageView.setRotate(getRotationAngle(tile.getOrientation()));
+                var resourceStream = getClass().getResourceAsStream(imagePath);
+                if (resourceStream == null) {
+                    System.err.println("Image not found: " + imagePath);
+                    imageView.setImage(null);
+                } else {
+                    Image image = new Image(resourceStream);
+                    imageView.setImage(image);
+                    // Rotate based on orientation
+                    imageView.setRotate(getRotationAngle(tile.getOrientation()));
+                }
             } catch (Exception e) {
-                // Fallback to text representation
+                // Fallback: no image, just show background color
+                System.err.println("Error loading image " + imagePath + ": " + e.getMessage());
                 imageView.setImage(null);
             }
 
@@ -284,13 +291,47 @@ public class BoardPane extends GridPane {
         private String getTileImagePath(Tile tile) {
             return switch (tile.getType()) {
                 case STRAIGHT -> "/images/mobile_tiles/I_Shape.jpg";
-                case CORNER -> "/images/mobile_tiles/L_tile.jpg";
+                case CORNER -> {
+                    if (tile.isFixed()) {
+                        // Fixed corner tiles use specific corner images based on orientation
+                        yield getFixedCornerImagePath(tile.getOrientation());
+                    } else if (tile.hasObjective()) {
+                        // Mobile L-shaped tiles with objectives are in root images folder
+                        yield "/images/" + tile.getObjective().getImagePath();
+                    } else {
+                        yield "/images/mobile_tiles/L_tile.jpg";
+                    }
+                }
                 case T_JUNCTION -> {
                     if (tile.hasObjective()) {
-                        yield "/images/fixed_tiles/" + tile.getObjective().getImagePath();
+                        Objective obj = tile.getObjective();
+                        // Fixed objectives are in fixed_tiles folder, mobile objectives in root
+                        if (isFixedObjective(obj)) {
+                            yield "/images/fixed_tiles/" + obj.getImagePath();
+                        } else {
+                            yield "/images/" + obj.getImagePath();
+                        }
+                    } else {
+                        yield "/images/mobile_tiles/L_tile.jpg";
                     }
-                    yield "/images/mobile_tiles/L_tile.jpg";
                 }
+            };
+        }
+
+        private String getFixedCornerImagePath(Direction orientation) {
+            return switch (orientation) {
+                case SOUTH -> "/images/corners/fixed_tile_upleft_corner.jpg";
+                case WEST -> "/images/corners/fixed_tile_upright_corner.jpg";
+                case NORTH -> "/images/corners/fixed_tile_downright_corner.jpg";
+                case EAST -> "/images/corners/fixed_tile_downleft_corner.jpg";
+            };
+        }
+
+        private boolean isFixedObjective(Objective obj) {
+            return switch (obj) {
+                case GRIMOIRE, GOLD_BAG, MAP, CROWN, KEYS, BONES,
+                     RING, TREASURE_CHEST, EMERALD, SWORD, CANDLE, HELMET -> true;
+                default -> false;
             };
         }
 

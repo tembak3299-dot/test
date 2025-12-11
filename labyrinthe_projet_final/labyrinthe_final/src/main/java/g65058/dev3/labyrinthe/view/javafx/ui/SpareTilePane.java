@@ -1,13 +1,14 @@
 package g65058.dev3.labyrinthe.view.javafx.ui;
 
 import g65058.dev3.labyrinthe.controller.GameController;
-import g65058.dev3.labyrinthe.model.board.Tile;
+import g65058.dev3.labyrinthe.model.board.*;
 import g65058.dev3.labyrinthe.model.game.GameState;
 import g65058.dev3.labyrinthe.model.game.LabyrinthFacade;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
@@ -119,6 +120,22 @@ public class SpareTilePane extends HBox {
         };
         background.setFill(bgColor);
 
+        // Load tile image
+        String imagePath = getTileImagePath(spare);
+        try {
+            var resourceStream = getClass().getResourceAsStream(imagePath);
+            if (resourceStream == null) {
+                System.err.println("Image not found: " + imagePath);
+                imageView.setImage(null);
+            } else {
+                Image image = new Image(resourceStream);
+                imageView.setImage(image);
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading image " + imagePath + ": " + e.getMessage());
+            imageView.setImage(null);
+        }
+
         // Rotate image to match orientation
         double angle = switch (spare.getOrientation()) {
             case NORTH -> 0;
@@ -131,5 +148,43 @@ public class SpareTilePane extends HBox {
         // Enable/disable rotation
         boolean canRotate = facade.getState() == GameState.WAITING_INSERT;
         rotateButton.setDisable(!canRotate);
+    }
+
+    /**
+     * Gets the image path for a tile.
+     */
+    private String getTileImagePath(Tile tile) {
+        return switch (tile.getType()) {
+            case STRAIGHT -> "/images/mobile_tiles/I_Shape.jpg";
+            case CORNER -> {
+                if (tile.hasObjective()) {
+                    // Mobile L-shaped tiles with objectives are in root images folder
+                    yield "/images/" + tile.getObjective().getImagePath();
+                } else {
+                    yield "/images/mobile_tiles/L_tile.jpg";
+                }
+            }
+            case T_JUNCTION -> {
+                if (tile.hasObjective()) {
+                    Objective obj = tile.getObjective();
+                    // Fixed objectives are in fixed_tiles folder, mobile objectives in root
+                    if (isFixedObjective(obj)) {
+                        yield "/images/fixed_tiles/" + obj.getImagePath();
+                    } else {
+                        yield "/images/" + obj.getImagePath();
+                    }
+                } else {
+                    yield "/images/mobile_tiles/L_tile.jpg";
+                }
+            }
+        };
+    }
+
+    private boolean isFixedObjective(Objective obj) {
+        return switch (obj) {
+            case GRIMOIRE, GOLD_BAG, MAP, CROWN, KEYS, BONES,
+                 RING, TREASURE_CHEST, EMERALD, SWORD, CANDLE, HELMET -> true;
+            default -> false;
+        };
     }
 }
